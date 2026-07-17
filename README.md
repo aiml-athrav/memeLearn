@@ -1,110 +1,120 @@
-# MemeLearn 🧠🎭
+# 🧠🎭 MemeLearn: Learn with Memes!
 
-MemeLearn is an AI-powered learning platform that helps you understand and retain complex topics, programming concepts, or science facts by transforming them into relatable, funny memes using **Gemini AI** and a **Python Image Processing microservice**.
-
----
-
-## Architecture Overview
-
-The project consists of three main components:
-1. **Frontend (React + TypeScript + Vite):** Interactive dashboard to request memes, view learning concepts, and explore history.
-2. **Backend Server (Node.js + Express):** Handles client requests, orchestrates calls to Gemini AI for captions, and interacts with MongoDB to store history.
-3. **Image Overlay Service (Python + Flask):** Uses Pillow to dynamically wrap text and render captions onto meme templates (e.g., Drake, Distracted Boyfriend, Expanding Brain).
+<p align="center">
+  <img src="https://img.shields.io/badge/Vite-8.x-646CFF?style=for-the-badge&logo=vite&logoColor=white" alt="Vite Badge" />
+  <img src="https://img.shields.io/badge/React-19.x-20232A?style=for-the-badge&logo=react&logoColor=61DAFB" alt="React Badge" />
+  <img src="https://img.shields.io/badge/Node.js-Express-339933?style=for-the-badge&logo=node.js&logoColor=white" alt="Node.js Badge" />
+  <img src="https://img.shields.io/badge/Python-Flask-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python Badge" />
+  <img src="https://img.shields.io/badge/MongoDB-Database-47A248?style=for-the-badge&logo=mongodb&logoColor=white" alt="MongoDB Badge" />
+</p>
 
 ---
 
-## Prerequisites
-
-Before setting up, ensure you have the following installed on your machine:
-* [Node.js](https://nodejs.org/) (v18+)
-* [Python](https://www.python.org/) (v3.8+)
-* [MongoDB](https://www.mongodb.com/) (Running locally on port `27017`)
+**MemeLearn** is an AI-powered educational web application designed to help students, developers, and curious minds master and retain complex topics, programming concepts, or science facts. It dynamically converts educational content into relatable, funny memes using **Gemini AI** and a custom **Python Image Processing microservice**.
 
 ---
 
-## Installation & Setup
+## 🚀 Key Features
 
-Follow these steps to set up the project on your local machine:
+* **🤖 AI Meme Generator:** Input any topic, and Gemini AI will curate custom, witty text tailored to standard meme templates.
+* **🖼️ Multi-Template Support:** 
+  * 🙅‍♂️ **Drake Hotline Bling** (Misconception vs. Correct Concept)
+  * 🧑‍🤝‍🧑 **Distracted Boyfriend** (Tempting Misconception vs. Core Fact)
+  * 🧠 **Expanding Brain** (4-stage escalation of understanding)
+* **📚 Dashboard & History:** Keep track of your learning milestones and save your generated memes to MongoDB.
+* **⚡ Modern UI/UX:** Stunning dark theme styling, glassmorphism, and responsive design powered by Tailwind CSS.
 
-### 1. Clone the Repository
+---
+
+## 🛠️ Architecture Flow
+
+```mermaid
+graph TD
+    A[React Client] -->|1. Input Topic & Template| B[Node API Server]
+    B -->|2. Generate Structured Captions| C[Gemini AI]
+    C -->|3. JSON Output| B
+    B -->|4. Request Image Rendering| D[Flask Image Service]
+    D -->|5. Overlay Text on Templates using PIL| D
+    D -->|6. Saved Meme Image URL| B
+    B -->|7. Save to Database| E[(MongoDB)]
+    B -->|8. Render Finished Meme & Explanation| A
+```
+
+---
+
+## 📋 Prerequisites
+
+Ensure you have the following installed locally:
+* **Node.js** 🟢 (v18.x or above)
+* **Python** 🐍 (v3.8 or above)
+* **MongoDB** 🍃 (Running locally on default port `27017`)
+
+---
+
+## ⚙️ Installation & Setup
+
+### 1️⃣ Clone the Repository
 ```bash
-git clone <repository-url>
+git clone https://github.com/aiml-athrav/memeLearn.git
 cd hackathon
 ```
 
-### 2. Configure Environment Variables
-Create a file named `.env` in the root directory and add the following variables:
+### 2️⃣ Configure Environment Variables (`.env`)
+Create a `.env` file in the root folder:
 ```env
 GEMINI_API_KEY=your_gemini_api_key_here
 PORT=5002
 MONGODB_URI=mongodb://127.0.0.1:27017/memelearn
 ```
-> **Note:** Never commit the `.env` file to version control. It is already included in `.gitignore`.
 
-### 3. Install Backend & Frontend Dependencies
-In the root directory, run:
+### 3️⃣ Install Frontend & Node Backend Dependencies
 ```bash
 npm install
 ```
 
-### 4. Set up the Python Flask Microservice
-Navigate to the `image_service` directory, set up a virtual environment, and install dependencies:
+### 4️⃣ Set up Python Virtual Environment & Flask Dependencies
 ```bash
 cd image_service
-
-# Create virtual environment
 python3 -m venv venv
 
-# Activate virtual environment
-# On macOS/Linux:
-source venv/bin/activate
-# On Windows (Command Prompt):
-# venv\Scripts\activate.bat
-# On Windows (PowerShell):
-# .\venv\Scripts\Activate.ps1
+# Activate Virtual Env
+source venv/bin/activate  # On macOS/Linux
+# venv\Scripts\activate.bat # On Windows CMD
+# .\venv\Scripts\Activate.ps1 # On Windows PowerShell
 
-# Install requirements
+# Install Packages
 pip install -r requirements.txt
+cd ..
 ```
 
 ---
 
-## Running the Application
+## 🏃‍♂️ Running the Application
 
-To run the application fully, you must start **MongoDB** and run **three separate servers** in individual terminal tabs/windows:
+To run the full stack, you need to open **three separate terminals** and run these services:
 
-### Step 1: Start MongoDB
-Ensure MongoDB is running locally.
-* **macOS:** `brew services start mongodb-community`
-* **Windows/Linux:** Start the MongoDB service via system services.
+### 🍃 Start MongoDB
+Ensure MongoDB is running in the background.
+```bash
+# macOS
+brew services start mongodb-community
+```
 
-### Step 2: Start the Python Flask Image Service
-From the root directory:
+### 🐍 Terminal 1: Flask Image Service (Port 5001)
 ```bash
 cd image_service
 source venv/bin/activate
 python app.py
 ```
-*This service will run on **http://localhost:5001***
 
-### Step 3: Start the Node.js API Server
-Open a new terminal and run from the root directory:
+### 🟢 Terminal 2: Node.js API Server (Port 5002)
 ```bash
 npm run server
 ```
-*This service will run on **http://localhost:5002***
 
-### Step 4: Start the Vite Frontend Development Server
-Open a new terminal and run from the root directory:
+### ⚡ Terminal 3: Vite Dev Server (Port 5173)
 ```bash
 npm run dev
 ```
-*This will open the web interface on **http://localhost:5173***
 
----
-
-## Tech Stack
-* **Frontend:** React, TypeScript, Vite, Tailwind CSS, Lucide icons
-* **Backend:** Node.js, Express, Mongoose, `@google/genai` SDK
-* **Image Processing:** Python, Flask, Pillow (PIL)
-* **Database:** MongoDB
+Open **[http://localhost:5173](http://localhost:5173)** in your browser and start learning with memes! 🚀
