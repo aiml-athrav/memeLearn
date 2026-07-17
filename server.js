@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
-import { GoogleGenAI } from '@google/genai';
+// Removed GoogleGenAI import
 import Meme from './models/Meme.js';
 
 // Load environment variables from .env file
@@ -20,17 +20,53 @@ const PORT = process.env.PORT || 5002;
 app.use(cors());
 app.use(express.json());
 
-// Initialize Google Gen AI client
-const getGeminiClient = () => {
-  const apiKey = process.env.GEMINI_API_KEY;
+// Check DeepSeek API key
+const hasDeepSeekKey = () => {
+  const apiKey = process.env.DEEPSEEK_API_KEY;
   if (!apiKey) {
-    console.warn("WARNING: GEMINI_API_KEY is not defined in the environment. Server will run but API requests will fail.");
-    return null;
+    console.warn("WARNING: DEEPSEEK_API_KEY is not defined in the environment. Server will run but API requests will fail.");
+    return false;
   }
-  return new GoogleGenAI({ apiKey });
+  return true;
 };
 
-const ai = getGeminiClient();
+const aiReady = hasDeepSeekKey();
+
+// Helper function to search for a meme image on DuckDuckGo
+async function fetchInternetMeme(topic) {
+  try {
+    const query = `${topic} meme`;
+    const url = `https://duckduckgo.com/?q=${encodeURIComponent(query)}`;
+    const res1 = await fetch(url, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+      }
+    });
+
+    if (!res1.ok) return "";
+    const html = await res1.text();
+    const vqdMatch = html.match(/vqd=([^&'"]+)/);
+    if (!vqdMatch) return "";
+    const vqd = vqdMatch[1];
+
+    const imageUrl = `https://duckduckgo.com/i.js?q=${encodeURIComponent(query)}&o=json&vqd=${vqd}`;
+    const res2 = await fetch(imageUrl, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Referer": "https://duckduckgo.com/"
+      }
+    });
+
+    if (!res2.ok) return "";
+    const data = await res2.json();
+    if (data.results && data.results.length > 0) {
+      return data.results[0].image;
+    }
+  } catch (error) {
+    console.error("Error fetching meme from internet:", error);
+  }
+  return "";
+}
 
 // POST Route for generating memes
 app.post('/api/generate-meme', async (req, res) => {
@@ -40,16 +76,18 @@ app.post('/api/generate-meme', async (req, res) => {
     return res.status(400).json({ error: "Missing required fields: topic and template are required." });
   }
 
-  if (!ai) {
+  if (!process.env.DEEPSEEK_API_KEY) {
     return res.status(500).json({ 
-      error: "Gemini API key is not set. Please define GEMINI_API_KEY in your .env file." 
+      error: "DeepSeek API key is not set. Please define DEEPSEEK_API_KEY in your .env file." 
     });
   }
 
   // Construct prompt as requested
   // Dynamically define prompt role-structure based on template
   let systemPrompt = "";
-  if (template === "distracted-boyfriend") {
+  if (template === "internet-search") {
+    systemPrompt = `Explain the topic '${topic}' in a funny, Hinglish tone. Return ONLY valid JSON with a single key: "realExplanation"`;
+  } else if (template === "distracted-boyfriend") {
     systemPrompt = `Explain the topic '${topic}' using the Distracted Boyfriend meme format with these exact roles:
     - label1 (Boyfriend, looking back): the WRONG intuitive misconception people commonly have about '${topic}'
     - label2 (Girlfriend, annoyed): the ACTUAL correct concept of '${topic}' being ignored
@@ -76,75 +114,111 @@ app.post('/api/generate-meme', async (req, res) => {
   }
 
   try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: systemPrompt,
-      config: {
-        responseMimeType: 'application/json',
-      }
+    const response = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${process.env.DEEPSEEK_API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: "deepseek-ai/deepseek-v4-pro",
+        messages: [
+          {
+            role: "user",
+            content: systemPrompt
+          }
+        ],
+        temperature: 0.6,
+        top_p: 0.7,
+        max_tokens: 1024
+      })
     });
 
-    const responseText = response.text.trim();
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`NVIDIA DeepSeek API error: ${response.status} - ${errText}`);
+    }
+
+    const responseData = await response.json();
+    let responseText = responseData.choices[0].message.content.trim();
+
+    // Strip thinking process tags if returning from deepseek-r1
+    if (responseText.includes("</think>")) {
+      responseText = responseText.split("</think>").pop().trim();
+    }
+
+    // Strip markdown code block markers if LLM wrapped JSON in it
+    if (responseText.startsWith("```")) {
+      responseText = responseText.replace(/^```[a-zA-Z]*\n/, "").replace(/\n```$/, "").trim();
+    }
     
-    // Safely parse JSON from Gemini response
+    // Safely parse JSON from DeepSeek response
     let parsedData;
     try {
       parsedData = JSON.parse(responseText);
     } catch (parseError) {
-      console.error("Failed to parse Gemini JSON response:", responseText, parseError);
+      console.error("Failed to parse DeepSeek JSON response:", responseText, parseError);
       return res.status(502).json({ 
         error: "AI returned an invalid response format. Please try again.",
         rawResponse: responseText 
       });
     }
 
-    // Construct Flask microservice payload mapping
-    let overlayPayload = {
-      templateName: template,
-    };
-
-    if (template === "distracted-boyfriend") {
-      overlayPayload.panel1 = parsedData.label1 || "";
-      overlayPayload.panel1_keyword = topic + " misconception";
-      overlayPayload.panel2 = parsedData.label3 || "";
-      overlayPayload.panel2_keyword = topic + " tempting";
-      overlayPayload.panel3 = parsedData.label2 || "";
-      overlayPayload.panel3_keyword = topic + " correct fact";
-    } else if (template === "drake") {
-      overlayPayload.panel1 = parsedData.label1 || "";
-      overlayPayload.panel1_keyword = topic + " incorrect";
-      overlayPayload.panel2 = parsedData.label2 || "";
-      overlayPayload.panel2_keyword = topic + " correct";
-    } else { // expanding-brain
-      overlayPayload.panel1 = parsedData.label1 || "";
-      overlayPayload.panel1_keyword = topic + " simple";
-      overlayPayload.panel2 = parsedData.label2 || "";
-      overlayPayload.panel2_keyword = topic + " intermediate";
-      overlayPayload.panel3 = parsedData.label3 || "";
-      overlayPayload.panel3_keyword = topic + " clever";
-      overlayPayload.panel4 = parsedData.label4 || "";
-      overlayPayload.panel4_keyword = topic + " cosmic";
-    }
-
-    // Make a request to the Python Flask microservice to overlay text on template image
+    // Fetch or overlay image
     let imageUrl = "";
-    try {
-      const overlayResponse = await fetch('http://localhost:5001/overlay-text', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(overlayPayload),
-      });
-
-      if (overlayResponse.ok) {
-        const overlayData = await overlayResponse.json();
-        imageUrl = `/output/${overlayData.filename}`;
-      } else {
-        console.warn("Flask microservice returned error status:", overlayResponse.status);
+    if (template === "internet-search") {
+      imageUrl = await fetchInternetMeme(topic);
+      if (!imageUrl) {
+        imageUrl = 'https://via.placeholder.com/600x400?text=No+Meme+Found';
       }
-    } catch (overlayError) {
-      console.error("Could not connect to Flask overlay microservice. Make sure it is running on port 5001.", overlayError);
+    } else {
+      // Construct Flask microservice payload mapping
+      let overlayPayload = {
+        templateName: template,
+      };
+
+      if (template === "distracted-boyfriend") {
+        overlayPayload.panel1 = parsedData.label1 || "";
+        overlayPayload.panel1_keyword = topic + " misconception";
+        overlayPayload.panel2 = parsedData.label3 || "";
+        overlayPayload.panel2_keyword = topic + " tempting";
+        overlayPayload.panel3 = parsedData.label2 || "";
+        overlayPayload.panel3_keyword = topic + " correct fact";
+      } else if (template === "drake") {
+        overlayPayload.panel1 = parsedData.label1 || "";
+        overlayPayload.panel1_keyword = topic + " incorrect";
+        overlayPayload.panel2 = parsedData.label2 || "";
+        overlayPayload.panel2_keyword = topic + " correct";
+      } else { // expanding-brain
+        overlayPayload.panel1 = parsedData.label1 || "";
+        overlayPayload.panel1_keyword = topic + " simple";
+        overlayPayload.panel2 = parsedData.label2 || "";
+        overlayPayload.panel2_keyword = topic + " intermediate";
+        overlayPayload.panel3 = parsedData.label3 || "";
+        overlayPayload.panel3_keyword = topic + " clever";
+        overlayPayload.panel4 = parsedData.label4 || "";
+        overlayPayload.panel4_keyword = topic + " cosmic";
+      }
+
+      // Make a request to the Python Flask microservice to overlay text on template image
+      try {
+        const overlayResponse = await fetch('http://localhost:5001/overlay-text', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(overlayPayload),
+        });
+
+        if (overlayResponse.ok) {
+          const overlayData = await overlayResponse.json();
+          imageUrl = `/output/${overlayData.filename}`;
+        } else {
+          console.warn("Flask microservice returned error status:", overlayResponse.status);
+        }
+      } catch (overlayError) {
+        console.error("Could not connect to Flask overlay microservice. Make sure it is running on port 5001.", overlayError);
+      }
     }
 
     // Save generated meme to MongoDB database
@@ -179,7 +253,7 @@ app.post('/api/generate-meme', async (req, res) => {
     } else if (template === "drake") {
       responsePayload.meme.panel1 = parsedData.label1 || "";
       responsePayload.meme.panel2 = parsedData.label2 || "";
-    } else { // expanding-brain
+    } else if (template === "expanding-brain") {
       responsePayload.meme.panel1 = parsedData.label1 || "";
       responsePayload.meme.panel2 = parsedData.label2 || "";
       responsePayload.meme.panel3 = parsedData.label3 || "";

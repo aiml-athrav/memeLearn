@@ -1,8 +1,13 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Home, PlusCircle, History, User } from 'lucide-react';
+import { Home, PlusCircle, History, User, Sun, Moon } from 'lucide-react';
 
-const BottomNav: React.FC = () => {
+interface BottomNavProps {
+  theme: string;
+  toggleTheme: () => void;
+}
+
+const BottomNav: React.FC<BottomNavProps> = ({ theme, toggleTheme }) => {
   const navItems = [
     { to: '/', label: 'Home', icon: Home },
     { to: '/create', label: 'Create', icon: PlusCircle },
@@ -24,7 +29,7 @@ const BottomNav: React.FC = () => {
         </div>
 
         {/* Navigation Items */}
-        <div className="flex w-full md:w-auto justify-around md:justify-end gap-1 md:gap-2">
+        <div className="flex w-full md:w-auto justify-around md:justify-end gap-1 md:gap-2 items-center">
           {navItems.map((item) => {
             const Icon = item.icon;
             return (
@@ -44,6 +49,15 @@ const BottomNav: React.FC = () => {
               </NavLink>
             );
           })}
+
+          {/* Desktop Theme Switch Toggle */}
+          <button
+            onClick={toggleTheme}
+            className="hidden md:flex items-center justify-center p-2.5 ml-4 rounded-xl text-slate-400 hover:text-slate-200 hover:bg-slate-900/40 transition-all duration-200 cursor-pointer"
+            aria-label="Toggle theme"
+          >
+            {theme === 'light' ? <Moon className="w-4.5 h-4.5" /> : <Sun className="w-4.5 h-4.5" />}
+          </button>
         </div>
       </div>
     </nav>

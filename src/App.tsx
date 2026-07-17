@@ -1,11 +1,11 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import Home from './pages/Home';
 import CreateMeme from './pages/CreateMeme';
 import Result from './pages/Result';
 import History from './pages/History';
 import BottomNav from './components/BottomNav';
-import { GraduationCap } from 'lucide-react';
+import { GraduationCap, Sun, Moon } from 'lucide-react';
 
 // Simple inline Profile Page component for completeness
 const Profile: React.FC = () => {
@@ -39,6 +39,21 @@ const Profile: React.FC = () => {
 };
 
 const App: React.FC = () => {
+  const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark');
+
+  useEffect(() => {
+    if (theme === 'light') {
+      document.documentElement.classList.add('light');
+    } else {
+      document.documentElement.classList.remove('light');
+    }
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
+  };
+
   return (
     <Router>
       <div className="min-h-screen bg-slate-950 text-slate-100 font-sans flex flex-col">
@@ -52,9 +67,18 @@ const App: React.FC = () => {
               Meme<span className="bg-gradient-to-r from-brand-purple to-brand-pink bg-clip-text text-transparent">Learn</span>
             </span>
           </Link>
-          <div className="flex items-center gap-1.5 text-xs font-semibold px-2 py-0.5 rounded bg-purple-500/10 text-purple-300 border border-purple-500/20">
-            <GraduationCap className="w-3.5 h-3.5" />
-            Lv. 3
+          <div className="flex items-center gap-2">
+            <button
+              onClick={toggleTheme}
+              className="p-1.5 rounded-lg bg-slate-900 border border-slate-850 text-slate-300 hover:text-white transition-colors cursor-pointer"
+              aria-label="Toggle theme"
+            >
+              {theme === 'light' ? <Moon className="w-3.5 h-3.5" /> : <Sun className="w-3.5 h-3.5" />}
+            </button>
+            <div className="flex items-center gap-1.5 text-xs font-semibold px-2 py-0.5 rounded bg-purple-500/10 text-purple-300 border border-purple-500/20">
+              <GraduationCap className="w-3.5 h-3.5" />
+              Lv. 3
+            </div>
           </div>
         </header>
 
@@ -70,7 +94,7 @@ const App: React.FC = () => {
         </main>
 
         {/* Global Bottom / Top Header Navigation */}
-        <BottomNav />
+        <BottomNav theme={theme} toggleTheme={toggleTheme} />
       </div>
     </Router>
   );

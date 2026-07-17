@@ -15,7 +15,7 @@ const CreateMeme: React.FC = () => {
   const [searchParams] = useSearchParams();
   const [topic, setTopic] = useState('');
   const [category, setCategory] = useState('Physics');
-  const [selectedTemplate, setSelectedTemplate] = useState('');
+  const [selectedTemplate, setSelectedTemplate] = useState('internet-search');
   const [difficulty, setDifficulty] = useState('beginner');
 
   const [loading, setLoading] = useState(false);
@@ -35,25 +35,11 @@ const CreateMeme: React.FC = () => {
 
   const templates: MemeTemplate[] = [
     {
-      id: 'expanding-brain',
-      name: 'Expanding Brain',
-      format: '4-stage intellectual realization',
-      emoji: '🧠',
-      gradient: 'from-purple-600/30 to-indigo-600/30',
-    },
-    {
-      id: 'drake',
-      name: 'Drake Meme',
-      format: 'Disliking vs. Loving a concept',
-      emoji: '🕺',
-      gradient: 'from-pink-600/30 to-rose-600/30',
-    },
-    {
-      id: 'distracted-boyfriend',
-      name: 'Distracted Boyfriend',
-      format: 'New topic distraction vs. Old study habit',
-      emoji: '👀',
-      gradient: 'from-blue-600/30 to-cyan-600/30',
+      id: 'internet-search',
+      name: 'Internet Meme Search',
+      format: 'Finds a highly relevant meme from the internet',
+      emoji: '🌐',
+      gradient: 'from-emerald-600/30 to-teal-600/30',
     },
   ];
 
