@@ -4,6 +4,8 @@ import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 // Removed GoogleGenAI import
 import Meme from './models/Meme.js';
+import User from './models/User.js';
+import crypto from 'crypto';
 
 // Load environment variables from .env file
 dotenv.config();
@@ -68,9 +70,137 @@ async function fetchInternetMeme(topic) {
   return "";
 }
 
+// Helper function to hash password using SHA-256
+const hashPassword = (password) => {
+  return crypto.createHash('sha256').update(password).digest('hex');
+};
+
+// Helper to escape newlines inside JSON string values before parsing
+const escapeNewlinesInJSON = (jsonString) => {
+  let insideString = false;
+  let result = '';
+  for (let i = 0; i < jsonString.length; i++) {
+    const char = jsonString[i];
+    if (char === '"' && (i === 0 || jsonString[i - 1] !== '\\')) {
+      insideString = !insideString;
+      result += char;
+    } else if (char === '\n' && insideString) {
+      result += '\\n';
+    } else if (char === '\r' && insideString) {
+      result += '\\r';
+    } else {
+      result += char;
+    }
+  }
+  return result;
+};
+
+// POST Route for User Registration
+app.post('/api/register', async (req, res) => {
+  const { username, email, password } = req.body;
+  if (!username || !email || !password) {
+    return res.status(400).json({ error: "All fields (username, email, password) are required." });
+  }
+
+  try {
+    const existingUser = await User.findOne({ 
+      $or: [{ email: email.toLowerCase() }, { username: username.trim() }] 
+    });
+
+    if (existingUser) {
+      return res.status(400).json({ error: "Username or Email already registered." });
+    }
+
+    const hashedPassword = hashPassword(password);
+    const newUser = new User({
+      username: username.trim(),
+      email: email.toLowerCase(),
+      password: hashedPassword
+    });
+
+    await newUser.save();
+    
+    return res.status(201).json({
+      message: "Registration successful!",
+      token: `token_${newUser._id}`,
+      user: {
+        id: newUser._id,
+        username: newUser.username,
+        email: newUser.email,
+        createdAt: newUser.createdAt
+      }
+    });
+  } catch (error) {
+    console.error("Register error:", error);
+    return res.status(500).json({ error: "Internal server error during registration." });
+  }
+});
+
+// POST Route for User Login
+app.post('/api/login', async (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password) {
+    return res.status(400).json({ error: "Email and password are required." });
+  }
+
+  try {
+    const user = await User.findOne({ email: email.toLowerCase() });
+    if (!user) {
+      return res.status(401).json({ error: "Invalid email or password." });
+    }
+
+    const hashedPassword = hashPassword(password);
+    if (user.password !== hashedPassword) {
+      return res.status(401).json({ error: "Invalid email or password." });
+    }
+
+    return res.json({
+      message: "Login successful!",
+      token: `token_${user._id}`,
+      user: {
+        id: user._id,
+        username: user.username,
+        email: user.email,
+        createdAt: user.createdAt
+      }
+    });
+  } catch (error) {
+    console.error("Login error:", error);
+    return res.status(500).json({ error: "Internal server error during login." });
+  }
+});
+
+// POST Route for Password Reset Verification
+app.post('/api/forgot-password', async (req, res) => {
+  const { username, email, newPassword } = req.body;
+  if (!username || !email || !newPassword) {
+    return res.status(400).json({ error: "Username, Email, and New Password are required." });
+  }
+
+  try {
+    const user = await User.findOne({ 
+      username: username.trim(),
+      email: email.toLowerCase() 
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: "No user found with the matching username and email." });
+    }
+
+    const hashedPassword = hashPassword(newPassword);
+    user.password = hashedPassword;
+    await user.save();
+
+    return res.json({ message: "Password reset successful! You can now log in." });
+  } catch (error) {
+    console.error("Forgot password error:", error);
+    return res.status(500).json({ error: "Internal server error during password reset." });
+  }
+});
+
 // POST Route for generating memes
 app.post('/api/generate-meme', async (req, res) => {
-  const { topic, template, language } = req.body;
+  const { topic, template, language, userId } = req.body;
 
   if (!topic || !template) {
     return res.status(400).json({ error: "Missing required fields: topic and template are required." });
@@ -121,7 +251,7 @@ app.post('/api/generate-meme', async (req, res) => {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        model: "deepseek-ai/deepseek-v4-pro",
+        model: "meta/llama-3.1-8b-instruct",
         messages: [
           {
             role: "user",
@@ -152,16 +282,16 @@ app.post('/api/generate-meme', async (req, res) => {
       responseText = responseText.replace(/^```[a-zA-Z]*\n/, "").replace(/\n```$/, "").trim();
     }
     
-    // Safely parse JSON from DeepSeek response
+    // Safely parse JSON from LLM response with newlines sanitization and raw text fallback
     let parsedData;
     try {
-      parsedData = JSON.parse(responseText);
+      const sanitized = escapeNewlinesInJSON(responseText);
+      parsedData = JSON.parse(sanitized);
     } catch (parseError) {
-      console.error("Failed to parse DeepSeek JSON response:", responseText, parseError);
-      return res.status(502).json({ 
-        error: "AI returned an invalid response format. Please try again.",
-        rawResponse: responseText 
-      });
+      console.warn("Failed to parse LLM JSON response, falling back to raw response text:", parseError);
+      parsedData = {
+        realExplanation: responseText
+      };
     }
 
     // Fetch or overlay image
@@ -224,6 +354,7 @@ app.post('/api/generate-meme', async (req, res) => {
     // Save generated meme to MongoDB database
     try {
       const newMeme = new Meme({
+        userId: userId || null,
         topic,
         template,
         imageUrl: imageUrl || 'https://via.placeholder.com/600x400?text=No+Image',
@@ -273,11 +404,92 @@ app.post('/api/generate-meme', async (req, res) => {
 // GET Route to fetch historical memes sorted by newest first
 app.get('/api/history', async (req, res) => {
   try {
-    const memes = await Meme.find({}).sort({ createdAt: -1 });
+    const { userId } = req.query;
+    const filter = userId ? { userId } : {};
+    const memes = await Meme.find(filter).sort({ createdAt: -1 });
     return res.json(memes);
   } catch (error) {
     console.error("Error fetching historical memes from database:", error);
     return res.status(500).json({ error: "Failed to load meme history." });
+  }
+});
+
+// POST Route to generate a multiple-choice question dynamically based on topic and explanation
+app.post('/api/generate-quiz', async (req, res) => {
+  const { topic, explanation } = req.body;
+  if (!topic || !explanation) {
+    return res.status(400).json({ error: "Missing required fields: topic and explanation are required." });
+  }
+
+  const systemPrompt = `Create a single multiple choice question to test a student's understanding of the topic '${topic}' based on this explanation: '${explanation}'.
+  
+  The question should be in simple Hinglish, funny, and have exactly 4 options. Return ONLY valid JSON with keys:
+  "question" (string),
+  "options" (array of 4 strings),
+  "correctIndex" (integer index, 0 to 3)
+  
+  Example format:
+  {
+    "question": "Photosynthesis mein plant kis cheez ka use karke khana banata hai?",
+    "options": ["Oxygen and nitrogen", "Sunlight, water, and CO2", "Soil and compost", "Burgers and fries"],
+    "correctIndex": 1
+  }`;
+
+  try {
+    const response = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${process.env.DEEPSEEK_API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: "meta/llama-3.1-8b-instruct",
+        messages: [
+          {
+            role: "user",
+            content: systemPrompt
+          }
+        ],
+        temperature: 0.6,
+        top_p: 0.7,
+        max_tokens: 512
+      })
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`NVIDIA DeepSeek API error: ${response.status} - ${errText}`);
+    }
+
+    const responseData = await response.json();
+    let responseText = responseData.choices[0].message.content.trim();
+
+    // Clean up potential markdown wrapper from responseText
+    if (responseText.startsWith("```")) {
+      responseText = responseText.replace(/^```[a-zA-Z]*\n/, "").replace(/\n```$/, "").trim();
+    }
+
+    let parsedData;
+    try {
+      const sanitized = escapeNewlinesInJSON(responseText);
+      parsedData = JSON.parse(sanitized);
+    } catch (parseError) {
+      console.error("Failed to parse quiz JSON:", parseError);
+      parsedData = {
+        question: `Test your knowledge on: ${topic}`,
+        options: [
+          "Option A (Read explanation to verify)",
+          "Option B (Read explanation to verify)",
+          "Option C (Read explanation to verify)",
+          "Option D (Read explanation to verify)"
+        ],
+        correctIndex: 0
+      };
+    }
+    return res.json(parsedData);
+  } catch (error) {
+    console.error("Error generating quiz:", error);
+    return res.status(500).json({ error: "Failed to generate quiz. Please try again." });
   }
 });
 

@@ -1,6 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, Link, useLocation } from 'react-router-dom';
-import { Share2, Sparkles, RefreshCw, Download, ArrowLeft, Lightbulb, Loader2, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Share2, Sparkles, RefreshCw, Download, ArrowLeft, Lightbulb, Loader2, AlertTriangle, CheckCircle, Brain, Check, X, Volume2, VolumeX } from 'lucide-react';
+
+interface QuizData {
+  question: string;
+  options: string[];
+  correctIndex: number;
+}
 
 interface MemeData {
   panel1: string;
@@ -39,6 +45,87 @@ const Result: React.FC = () => {
   const [difficulty, setDifficulty] = useState<string>(fallbackDifficulty);
   
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Quiz State
+  const [quizData, setQuizData] = useState<QuizData | null>(null);
+  const [quizState, setQuizState] = useState<'idle' | 'loading' | 'active' | 'submitted' | 'error'>('idle');
+  const [selectedOption, setSelectedOption] = useState<number | null>(null);
+
+  // Speech State
+  const [isPlayingSpeech, setIsPlayingSpeech] = useState(false);
+
+  useEffect(() => {
+    return () => {
+      window.speechSynthesis.cancel();
+    };
+  }, []);
+
+  const handleToggleSpeech = () => {
+    if (!memeData) return;
+
+    if (window.speechSynthesis.speaking) {
+      window.speechSynthesis.cancel();
+      setIsPlayingSpeech(false);
+      return;
+    }
+
+    const utterance = new SpeechSynthesisUtterance(memeData.realExplanation);
+    
+    // Find suitable local voice (Hindi or Indian English)
+    const voices = window.speechSynthesis.getVoices();
+    const targetVoice = voices.find(v => v.lang.includes('hi-IN') || v.lang.includes('en-IN')) || voices[0];
+    if (targetVoice) {
+      utterance.voice = targetVoice;
+    }
+    
+    utterance.rate = 1.0;
+    utterance.pitch = 1.0;
+    
+    utterance.onend = () => {
+      setIsPlayingSpeech(false);
+    };
+    utterance.onerror = () => {
+      setIsPlayingSpeech(false);
+    };
+
+    window.speechSynthesis.speak(utterance);
+    setIsPlayingSpeech(true);
+  };
+
+  const handleLoadQuiz = async () => {
+    if (!memeData) return;
+    setQuizState('loading');
+    try {
+      const response = await fetch('/api/generate-quiz', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          topic,
+          explanation: memeData.realExplanation
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate quiz');
+      }
+
+      const data = await response.json();
+      setQuizData(data);
+      setSelectedOption(null);
+      setQuizState('active');
+    } catch (err) {
+      console.error(err);
+      setQuizState('error');
+    }
+  };
+
+  const handleSelectOption = (idx: number) => {
+    if (quizState !== 'active') return;
+    setSelectedOption(idx);
+    setQuizState('submitted');
+  };
 
   const loadingMessages = [
     'Brewing your meme lesson...',
@@ -282,10 +369,24 @@ const Result: React.FC = () => {
 
           {/* Quick Explanation Panel */}
           <div className="p-6 rounded-2xl bg-slate-900/50 border border-slate-800/80">
-            <h3 className="font-bold text-lg text-white mb-3 flex items-center gap-2">
-              <Lightbulb className="w-5 h-5 text-purple-400" />
-              Quick Explanation
-            </h3>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-bold text-lg text-white flex items-center gap-2">
+                <Lightbulb className="w-5 h-5 text-purple-400" />
+                Quick Explanation
+              </h3>
+              <button
+                type="button"
+                onClick={handleToggleSpeech}
+                title={isPlayingSpeech ? "Stop Audio" : "Listen Aloud"}
+                className={`p-2 rounded-lg border transition-all cursor-pointer ${
+                  isPlayingSpeech 
+                    ? "bg-purple-500/15 border-purple-500/35 text-purple-300 animate-pulse" 
+                    : "bg-slate-950 border-slate-850 text-slate-400 hover:text-purple-400 hover:border-purple-500/30"
+                }`}
+              >
+                {isPlayingSpeech ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+              </button>
+            </div>
             <p className="text-slate-300 leading-relaxed text-sm">
               {memeData.realExplanation}
             </p>
@@ -293,6 +394,106 @@ const Result: React.FC = () => {
               <span>Method: Gemini Associative Learning</span>
               <span>Tone: Hinglish Tone</span>
             </div>
+          </div>
+
+          {/* 🧠 Test Your Memory! Quiz Card */}
+          <div className="p-6 rounded-2xl bg-slate-900/50 border border-slate-850">
+            <h3 className="font-bold text-lg text-white mb-3 flex items-center gap-2">
+              <Brain className="w-5 h-5 text-pink-500 animate-pulse" />
+              Test Your Memory!
+            </h3>
+
+            {quizState === 'idle' && (
+              <div className="space-y-4 text-center py-4">
+                <p className="text-sm text-slate-400">
+                  Concept samajh aa gaya? Ek dynamic 1-question check-in test dekar self-verify karein!
+                </p>
+                <button
+                  onClick={handleLoadQuiz}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-brand-purple to-brand-pink text-white font-bold text-sm shadow-md transition-all active:scale-95 cursor-pointer"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  Start Memory Test
+                </button>
+              </div>
+            )}
+
+            {quizState === 'loading' && (
+              <div className="flex flex-col items-center justify-center py-8 gap-2 text-slate-500 text-sm">
+                <Loader2 className="w-7 h-7 text-pink-500 animate-spin" />
+                <span>Generating dynamic MCQ using DeepSeek...</span>
+              </div>
+            )}
+
+            {quizState === 'error' && (
+              <div className="text-center py-4 space-y-3">
+                <p className="text-sm text-red-400">Failed to load quiz. DeepSeek might be busy.</p>
+                <button
+                  onClick={handleLoadQuiz}
+                  className="px-4 py-2 rounded-lg bg-red-500/10 border border-red-500/20 text-xs text-red-400 font-bold cursor-pointer"
+                >
+                  Try Again
+                </button>
+              </div>
+            )}
+
+            {(quizState === 'active' || quizState === 'submitted') && quizData && (
+              <div className="space-y-4">
+                <p className="text-sm font-semibold text-slate-200">{quizData.question}</p>
+                
+                <div className="grid grid-cols-1 gap-2.5">
+                  {quizData.options.map((opt, idx) => {
+                    const isSelected = selectedOption === idx;
+                    const isCorrectChoice = quizData.correctIndex === idx;
+                    let buttonClass = "w-full text-left px-4 py-3 rounded-xl border border-slate-800 bg-slate-950 text-slate-350 text-sm transition-all hover:bg-slate-900 cursor-pointer";
+
+                    if (quizState === 'submitted') {
+                      if (isCorrectChoice) {
+                        buttonClass = "w-full text-left px-4 py-3 rounded-xl border border-emerald-500 bg-emerald-500/10 text-emerald-400 text-sm font-semibold flex items-center justify-between";
+                      } else if (isSelected && !isCorrectChoice) {
+                        buttonClass = "w-full text-left px-4 py-3 rounded-xl border border-red-500 bg-red-500/10 text-red-400 text-sm font-semibold flex items-center justify-between";
+                      } else {
+                        buttonClass = "w-full text-left px-4 py-3 rounded-xl border border-slate-850 bg-slate-950/40 text-slate-500 text-sm cursor-not-allowed";
+                      }
+                    }
+
+                    return (
+                      <button
+                        key={idx}
+                        type="button"
+                        disabled={quizState === 'submitted'}
+                        onClick={() => handleSelectOption(idx)}
+                        className={buttonClass}
+                      >
+                        <span>{opt}</span>
+                        {quizState === 'submitted' && isCorrectChoice && <Check className="w-4 h-4 text-emerald-400 flex-shrink-0" />}
+                        {quizState === 'submitted' && isSelected && !isCorrectChoice && <X className="w-4 h-4 text-red-400 flex-shrink-0" />}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {quizState === 'submitted' && (
+                  <div className="pt-4 border-t border-slate-850 flex items-center justify-between text-xs">
+                    {selectedOption === quizData.correctIndex ? (
+                      <span className="text-emerald-400 font-bold flex items-center gap-1">
+                        🎉 Correct! +10 XP earned
+                      </span>
+                    ) : (
+                      <span className="text-red-400 font-bold flex items-center gap-1">
+                        ❌ Oops! Sahi option green wala tha.
+                      </span>
+                    )}
+                    <button
+                      onClick={handleLoadQuiz}
+                      className="text-purple-400 hover:text-purple-300 font-bold cursor-pointer"
+                    >
+                      Another Question
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}

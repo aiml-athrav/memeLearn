@@ -23,7 +23,11 @@ const History: React.FC = () => {
       setLoading(true);
       setError(null);
       try {
-        const response = await fetch('/api/history');
+        const storedUser = localStorage.getItem('user_profile');
+        const userId = storedUser ? JSON.parse(storedUser).id : '';
+        const url = userId ? `/api/history?userId=${userId}` : '/api/history';
+        
+        const response = await fetch(url);
         if (!response.ok) {
           throw new Error('Failed to load history');
         }

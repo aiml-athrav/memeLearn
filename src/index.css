@@ -134,3 +134,168 @@
   background: #94a3b8;
 }
 
+/* Hardcore Welcome Entry Animations */
+@keyframes hardcore-drop-bounce {
+  0% {
+    opacity: 0;
+    transform: translateY(-200px) scale(0.3) rotate(-45deg);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(25px) scale(1.1) rotate(10deg);
+  }
+  80% {
+    transform: translateY(-10px) scale(0.95) rotate(-5deg);
+  }
+  100% {
+    transform: translateY(0) scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+@keyframes hardcore-slide-left {
+  0% {
+    opacity: 0;
+    transform: translateX(-350px) skewX(-20deg);
+  }
+  70% {
+    opacity: 1;
+    transform: translateX(20px) skewX(5deg);
+  }
+  100% {
+    transform: translateX(0) skewX(0deg);
+    opacity: 1;
+  }
+}
+
+@keyframes hardcore-slide-right {
+  0% {
+    opacity: 0;
+    transform: translateX(350px) skewX(20deg);
+  }
+  70% {
+    opacity: 1;
+    transform: translateX(-20px) skewX(-5deg);
+  }
+  100% {
+    transform: translateX(0) skewX(0deg);
+    opacity: 1;
+  }
+}
+
+@keyframes hardcore-glow-ring {
+  0%, 100% {
+    transform: translate(-50%, -50%) scale(0.85) rotate(0deg);
+    opacity: 0.45;
+    filter: blur(20px);
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.15) rotate(180deg);
+    opacity: 0.75;
+    filter: blur(35px);
+  }
+}
+
+@keyframes hardcore-exit-zoom {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+    filter: blur(0px);
+  }
+  30% {
+    transform: scale(0.96);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(2.2);
+    filter: blur(15px);
+    visibility: hidden;
+    pointer-events: none;
+  }
+}
+
+.animate-hardcore-logo {
+  animation: hardcore-drop-bounce 1s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+.animate-hardcore-title {
+  opacity: 0;
+  animation: hardcore-slide-left 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) 0.5s both;
+}
+
+.animate-hardcore-subtitle {
+  opacity: 0;
+  animation: hardcore-slide-right 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) 0.7s both;
+}
+
+.animate-hardcore-glow {
+  animation: hardcore-glow-ring 3.5s ease-in-out infinite;
+}
+
+.animate-hardcore-overlay {
+  animation: hardcore-exit-zoom 0.7s cubic-bezier(0.77, 0, 0.175, 1) 2.2s forwards;
+}
+
+/* Global Hover Micro-Animations */
+button,
+a.inline-flex,
+.cursor-pointer {
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+button:hover:not(:disabled),
+a.inline-flex:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 10px 20px -10px rgba(168, 85, 247, 0.4) !important;
+}
+
+button:active:not(:disabled),
+a.inline-flex:active {
+  transform: translateY(0px) scale(0.98);
+}
+
+/* Hover effects for dashboard and cards */
+.p-4.rounded-xl,
+.p-5.rounded-2xl,
+.p-6.rounded-2xl,
+.p-6.rounded-xl,
+.rounded-2xl.bg-slate-900\/60 {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.p-4.rounded-xl:hover,
+.p-5.rounded-2xl:hover,
+.p-6.rounded-2xl:hover,
+.p-6.rounded-xl:hover,
+.rounded-2xl.bg-slate-900\/60:hover {
+  transform: translateY(-4px);
+  border-color: rgba(168, 85, 247, 0.35) !important;
+  box-shadow: 0 12px 24px -10px rgba(0, 0, 0, 0.5) !important;
+}
+
+/* Light Theme card hover adjustments */
+.light .p-4.rounded-xl:hover,
+.light .p-5.rounded-2xl:hover,
+.light .p-6.rounded-2xl:hover,
+.light .p-6.rounded-xl:hover,
+.light .rounded-2xl.bg-slate-900\/60:hover {
+  box-shadow: 0 12px 24px -10px rgba(148, 163, 184, 0.25) !important;
+}
+
+/* Form fields transitions */
+input,
+select,
+textarea {
+  transition: all 0.2s ease-in-out !important;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: #a855f7 !important;
+  box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.25) !important;
+}
+
+
+
+

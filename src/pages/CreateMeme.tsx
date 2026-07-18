@@ -10,6 +10,53 @@ interface MemeTemplate {
   gradient: string;
 }
 
+const SUGGESTED_TOPICS = [
+  // Physics
+  "Newton's First Law",
+  "Newton's Second Law",
+  "Newton's Third Law",
+  "Quantum Mechanics",
+  "Thermodynamics",
+  "Einstein's Theory of Relativity",
+  "Gravity & Black Holes",
+  "Coulomb's Law",
+  // Chemistry
+  "Periodic Table",
+  "Covalent Bonds",
+  "Ionic Bonds",
+  "Acid-Base Reactions",
+  "Organic Chemistry Basics",
+  "Avogadro's Number",
+  // Biology
+  "Mitosis vs Meiosis",
+  "Mitochondria (Powerhouse of the Cell)",
+  "DNA Replication",
+  "Natural Selection",
+  "Human Circulatory System",
+  "Photosynthesis",
+  // Math
+  "Quadratic Equation",
+  "Pythagorean Theorem",
+  "Calculus Derivatives",
+  "Fibonacci Sequence",
+  "Probability and Statistics",
+  "Trigonometric Identities",
+  // History
+  "French Revolution",
+  "World War I",
+  "World War II",
+  "Industrial Revolution",
+  "Ancient Egyptian Pyramids",
+  // Computer Science & Tech
+  "React useEffect Hook",
+  "Docker vs Virtual Machines",
+  "HTTP Status Codes",
+  "CSS Centering methods",
+  "SQL Joins (Inner, Left, Right)",
+  "REST APIs vs GraphQL",
+  "Git Merge vs Rebase"
+];
+
 const CreateMeme: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -18,9 +65,43 @@ const CreateMeme: React.FC = () => {
   const [selectedTemplate, setSelectedTemplate] = useState('internet-search');
   const [difficulty, setDifficulty] = useState('beginner');
 
+  const [filteredSuggestions, setFilteredSuggestions] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loadingMessage, setLoadingMessage] = useState('Brewing your meme lesson...');
+
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('.suggestions-container')) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener('click', handleOutsideClick);
+    return () => document.removeEventListener('click', handleOutsideClick);
+  }, []);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setTopic(val);
+    if (val.trim().length > 0) {
+      const filtered = SUGGESTED_TOPICS.filter((t) =>
+        t.toLowerCase().includes(val.toLowerCase())
+      );
+      setFilteredSuggestions(filtered);
+      setShowSuggestions(true);
+    } else {
+      setFilteredSuggestions([]);
+      setShowSuggestions(false);
+    }
+  };
+
+  const handleSuggestionClick = (suggestion: string) => {
+    setTopic(suggestion);
+    setShowSuggestions(false);
+  };
 
   const loadingMessages = [
     'Brewing your meme lesson...',
@@ -70,6 +151,9 @@ const CreateMeme: React.FC = () => {
     setError(null);
 
     try {
+      const storedUser = localStorage.getItem('user_profile');
+      const userId = storedUser ? JSON.parse(storedUser).id : null;
+
       const response = await fetch('/api/generate-meme', {
         method: 'POST',
         headers: {
@@ -79,6 +163,7 @@ const CreateMeme: React.FC = () => {
           topic,
           template: selectedTemplate,
           language: 'Hinglish',
+          userId,
         }),
       });
 
@@ -146,18 +231,39 @@ const CreateMeme: React.FC = () => {
           <label className="block text-sm font-semibold text-slate-300">
             What concept are you learning?
           </label>
-          <div className="relative">
+          <div className="relative suggestions-container">
             <input
               type="text"
               required
               value={topic}
-              onChange={(e) => setTopic(e.target.value)}
+              onChange={handleInputChange}
+              onFocus={() => {
+                if (topic.trim().length > 0) {
+                  setShowSuggestions(true);
+                }
+              }}
               placeholder="e.g. Newton's Third Law, Photosynthesis, Quadratic Equation"
               className="w-full px-4 py-3.5 bg-slate-900 border border-slate-800 focus:border-purple-500 rounded-xl text-slate-100 placeholder-slate-500 outline-none transition-all"
             />
             <div className="absolute right-3.5 top-3.5 text-slate-500">
               <BookOpen className="w-5 h-5" />
             </div>
+
+            {/* Suggestions Dropdown */}
+            {showSuggestions && filteredSuggestions.length > 0 && (
+              <div className="absolute left-0 right-0 mt-2 bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-2xl z-30 max-h-60 overflow-y-auto">
+                {filteredSuggestions.map((suggestion) => (
+                  <button
+                    key={suggestion}
+                    type="button"
+                    onClick={() => handleSuggestionClick(suggestion)}
+                    className="w-full px-4 py-3 text-left text-sm text-slate-300 hover:text-white hover:bg-slate-800/80 transition-colors border-b border-slate-850/50 last:border-0 cursor-pointer"
+                  >
+                    {suggestion}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 

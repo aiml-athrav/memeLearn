@@ -112,9 +112,9 @@ python app.py
 npm run server
 ```
 
-### ⚡ Terminal 3: Vite Dev Server (Port 5173)
+### ⚡ Terminal 3: Vite Dev Server (Port 5175)
 ```bash
 npm run dev
 ```
 
-Open **[http://localhost:5173](http://localhost:5173)** in your browser and start learning with memes! 🚀
+Open **[http://localhost:5175](http://localhost:5175)** in your browser and start learning with memes! 🚀

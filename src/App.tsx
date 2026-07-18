@@ -7,32 +7,29 @@ import History from './pages/History';
 import BottomNav from './components/BottomNav';
 import { GraduationCap, Sun, Moon } from 'lucide-react';
 
-// Simple inline Profile Page component for completeness
-const Profile: React.FC = () => {
-  return (
-    <div className="max-w-2xl mx-auto px-4 py-8 pb-24 md:pb-8 text-left">
-      <h1 className="text-3xl font-extrabold text-white mb-2">Scholar Profile</h1>
-      <p className="text-slate-400 mb-8">Track your memory retention and learning milestones.</p>
-      
-      <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 flex items-center gap-4 mb-6">
-        <div className="w-16 h-16 rounded-full bg-gradient-to-r from-brand-purple to-brand-pink flex items-center justify-center font-display font-black text-xl text-white">
-          ML
-        </div>
-        <div>
-          <h2 className="text-xl font-bold text-slate-100">Meme Learner</h2>
-          <p className="text-xs text-purple-400 font-semibold">RANK: MEME SCHOLAR (LV. 3)</p>
-        </div>
-      </div>
+import Profile from './pages/Profile';
 
-      <div className="grid grid-cols-2 gap-4">
-        <div className="p-4 rounded-xl bg-slate-900/50 border border-slate-800/80">
-          <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Weekly Streak</div>
-          <div className="text-xl font-black text-slate-100">5 Days 🔥</div>
+const SplashOverlay: React.FC = () => {
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-slate-950 overflow-hidden animate-hardcore-overlay">
+      {/* Rotating background glow */}
+      <div className="absolute top-1/2 left-1/2 w-[400px] h-[400px] rounded-full bg-gradient-to-br from-brand-purple/20 to-brand-pink/25 animate-hardcore-glow"></div>
+      
+      <div className="relative z-10 text-center">
+        {/* Bouncing Logo */}
+        <div className="w-24 h-24 mx-auto rounded-3xl bg-gradient-to-br from-brand-purple to-brand-pink flex items-center justify-center shadow-2xl shadow-purple-500/30 mb-8 animate-hardcore-logo">
+          <span className="font-display font-black text-4xl text-white">M</span>
         </div>
-        <div className="p-4 rounded-xl bg-slate-900/50 border border-slate-800/80">
-          <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Completed Topics</div>
-          <div className="text-xl font-black text-slate-100">12 Concepts</div>
-        </div>
+        
+        {/* Sliding Title */}
+        <h1 className="text-5xl md:text-6xl font-black text-white tracking-tight mb-3 animate-hardcore-title">
+          Meme<span className="bg-gradient-to-r from-brand-purple to-brand-pink bg-clip-text text-transparent">Learn</span>
+        </h1>
+        
+        {/* Sliding Subtitle */}
+        <p className="text-xs md:text-sm text-slate-400 font-bold max-w-xs mx-auto tracking-widest uppercase animate-hardcore-subtitle">
+          Welcome to MemeLearn! Learn with Memes
+        </p>
       </div>
     </div>
   );
@@ -40,6 +37,19 @@ const Profile: React.FC = () => {
 
 const App: React.FC = () => {
   const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark');
+  const [showSplash, setShowSplash] = useState(false);
+
+  useEffect(() => {
+    const hasVisited = sessionStorage.getItem('visited');
+    if (!hasVisited) {
+      setShowSplash(true);
+      sessionStorage.setItem('visited', 'true');
+      const timer = setTimeout(() => {
+        setShowSplash(false);
+      }, 2800);
+      return () => clearTimeout(timer);
+    }
+  }, []);
 
   useEffect(() => {
     if (theme === 'light') {
@@ -57,6 +67,7 @@ const App: React.FC = () => {
   return (
     <Router>
       <div className="min-h-screen bg-slate-950 text-slate-100 font-sans flex flex-col">
+        {showSplash && <SplashOverlay />}
         {/* Mobile Header */}
         <header className="md:hidden sticky top-0 z-40 bg-slate-950/80 backdrop-blur-xl border-b border-slate-900 px-4 py-3 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
