@@ -42,6 +42,36 @@ graph TD
 
 ---
 
+## 📸 Application Screenshots
+
+Here is a visual walk-through of the **MemeLearn** application in action:
+
+### 🏠 Landing Page
+The homepage welcomes users with a premium dark-themed interface, detailing the 3-step learning loop (Input Topic, AI Meme Generator, Retain & Learn).
+![MemeLearn Landing Page](web%20images/screenshot1.png)
+
+---
+
+### ✍️ Creation Interface
+Users can type any complex concept, select a category, choose the meme template format, and customize the explanation level (Beginner/ELI5, Intermediate, or Advanced).
+![MemeLearn Creation Page](web%20images/screenshot2.png)
+
+---
+
+### 📊 History & Dashboard
+Displays progress metrics (Total Memes, Avg Retention Rate, Scholar Level) alongside a searchable gallery of all generated memes.
+![MemeLearn History Dashboard](web%20images/screenshot3.png)
+
+---
+
+### 📖 Interactive Meme Lesson
+* **Meme View (Upper Part)**: Renders the custom study meme with options to Share, Download, or Regenerate.
+  ![Lesson Detail Upper](web%20images/screenshot4.png)
+* **Explanation & Quiz (Lower Part)**: Displays Gemini-generated associative explanations in Hinglish (with Text-to-Speech support) and contains a "Test Your Memory" section.
+  ![Lesson Detail Lower](web%20images/screenshot5.png)
+
+---
+
 ## 📋 Prerequisites
 
 Ensure you have the following installed locally:
