@@ -522,7 +522,7 @@ app.get('/output/:filename', async (req, res) => {
 app.use(express.static(path.join(__dirname, 'dist')));
 
 // SPA route fallback: serve index.html for any frontend pages
-app.get('*', (req, res) => {
+app.get('*all', (req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
