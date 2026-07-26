@@ -50,28 +50,50 @@ async function fetchInternetMeme(topic) {
       }
     });
 
-    if (!res1.ok) return "";
-    const html = await res1.text();
-    const vqdMatch = html.match(/vqd=([^&'"]+)/);
-    if (!vqdMatch) return "";
-    const vqd = vqdMatch[1];
+    if (res1.ok) {
+      const html = await res1.text();
+      const vqdMatch = html.match(/vqd=([^&'"]+)/);
+      if (vqdMatch) {
+        const vqd = vqdMatch[1];
+        const imageUrl = `https://duckduckgo.com/i.js?q=${encodeURIComponent(query)}&o=json&vqd=${vqd}`;
+        const res2 = await fetch(imageUrl, {
+          headers: {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Referer": "https://duckduckgo.com/"
+          }
+        });
 
-    const imageUrl = `https://duckduckgo.com/i.js?q=${encodeURIComponent(query)}&o=json&vqd=${vqd}`;
-    const res2 = await fetch(imageUrl, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Referer": "https://duckduckgo.com/"
+        if (res2.ok) {
+          const data = await res2.json();
+          if (data.results && data.results.length > 0) {
+            return data.results[0].image;
+          }
+        }
       }
-    });
-
-    if (!res2.ok) return "";
-    const data = await res2.json();
-    if (data.results && data.results.length > 0) {
-      return data.results[0].image;
     }
   } catch (error) {
-    console.error("Error fetching meme from internet:", error);
+    console.error("Error fetching meme from DuckDuckGo:", error);
   }
+
+  // Fallback to Wikipedia Page Image API if DuckDuckGo blocks the server IP
+  try {
+    console.log(`DuckDuckGo blocked or failed for topic: "${topic}". Falling back to Wikipedia API...`);
+    const wikiUrl = `https://en.wikipedia.org/w/api.php?action=query&prop=pageimages&format=json&piprop=original&titles=${encodeURIComponent(topic)}`;
+    const wikiRes = await fetch(wikiUrl);
+    if (wikiRes.ok) {
+      const wikiData = await wikiRes.json();
+      const pages = wikiData.query?.pages;
+      if (pages) {
+        const pageKeys = Object.keys(pages);
+        if (pageKeys.length > 0 && pages[pageKeys[0]].original) {
+          return pages[pageKeys[0]].original.source;
+        }
+      }
+    }
+  } catch (wikiError) {
+    console.error("Error fetching fallback image from Wikipedia:", wikiError);
+  }
+
   return "";
 }
 
