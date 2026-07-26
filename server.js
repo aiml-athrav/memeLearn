@@ -75,18 +75,21 @@ async function fetchInternetMeme(topic) {
     console.error("Error fetching meme from DuckDuckGo:", error);
   }
 
-  // Fallback to Wikipedia Page Image API if DuckDuckGo blocks the server IP
+  // Fallback to Wikipedia Search Generator API if DuckDuckGo blocks the server IP
   try {
-    console.log(`DuckDuckGo blocked or failed for topic: "${topic}". Falling back to Wikipedia API...`);
-    const wikiUrl = `https://en.wikipedia.org/w/api.php?action=query&prop=pageimages&format=json&piprop=original&titles=${encodeURIComponent(topic)}`;
+    console.log(`DuckDuckGo blocked or failed for topic: "${topic}". Falling back to Wikipedia Search API...`);
+    const wikiUrl = `https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(topic)}&format=json&prop=pageimages&piprop=original&gsrlimit=5`;
     const wikiRes = await fetch(wikiUrl);
     if (wikiRes.ok) {
       const wikiData = await wikiRes.json();
       const pages = wikiData.query?.pages;
       if (pages) {
-        const pageKeys = Object.keys(pages);
-        if (pageKeys.length > 0 && pages[pageKeys[0]].original) {
-          return pages[pageKeys[0]].original.source;
+        // Sort pages by search relevance index
+        const sortedPages = Object.values(pages).sort((a, b) => (a.index || 99) - (b.index || 99));
+        // Return first match that has an original image
+        const pageWithImg = sortedPages.find(p => p.original && p.original.source);
+        if (pageWithImg) {
+          return pageWithImg.original.source;
         }
       }
     }
