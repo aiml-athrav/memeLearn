@@ -332,7 +332,8 @@ app.post('/api/generate-meme', async (req, res) => {
 
       // Make a request to the Python Flask microservice to overlay text on template image
       try {
-        const overlayResponse = await fetch('http://localhost:5001/overlay-text', {
+        const flaskServiceUrl = process.env.FLASK_SERVICE_URL || 'http://localhost:5001';
+        const overlayResponse = await fetch(`${flaskServiceUrl}/overlay-text`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
