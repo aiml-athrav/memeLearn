@@ -6,6 +6,11 @@ import mongoose from 'mongoose';
 import Meme from './models/Meme.js';
 import User from './models/User.js';
 import crypto from 'crypto';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Load environment variables from .env file
 dotenv.config();
@@ -492,6 +497,33 @@ app.post('/api/generate-quiz', async (req, res) => {
     console.error("Error generating quiz:", error);
     return res.status(500).json({ error: "Failed to generate quiz. Please try again." });
   }
+});
+
+// Proxy endpoint to fetch images from the Python Flask Image Service
+app.get('/output/:filename', async (req, res) => {
+  const flaskServiceUrl = process.env.FLASK_SERVICE_URL || 'http://localhost:5001';
+  try {
+    const response = await fetch(`${flaskServiceUrl}/output/${req.params.filename}`);
+    if (response.ok) {
+      const arrayBuffer = await response.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      res.set('Content-Type', response.headers.get('content-type') || 'image/png');
+      res.send(buffer);
+    } else {
+      res.status(404).send('Image not found in Flask service');
+    }
+  } catch (error) {
+    console.error('Error fetching image from Flask service:', error);
+    res.status(500).send('Internal server error');
+  }
+});
+
+// Serve static assets from 'dist' directory (Vite output folder)
+app.use(express.static(path.join(__dirname, 'dist')));
+
+// SPA route fallback: serve index.html for any frontend pages
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
 // Start listening
