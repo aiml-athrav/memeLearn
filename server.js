@@ -294,16 +294,26 @@ app.post('/api/generate-meme', async (req, res) => {
       parsedData = JSON.parse(sanitized);
     } catch (parseError) {
       console.warn("Failed to parse LLM JSON response, falling back to raw response text:", parseError);
-      parsedData = {
-        realExplanation: responseText
-      };
+      // Regex fallback to extract realExplanation from malformed JSON
+      const match = responseText.match(/"realExplanation"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+      if (match) {
+        parsedData = {
+          realExplanation: match[1].replace(/\\n/g, '\n').replace(/\\"/g, '"')
+        };
+      } else {
+        parsedData = {
+          realExplanation: responseText
+        };
+      }
     }
 
     // Fetch or overlay image
     let imageUrl = "";
     if (template === "internet-search") {
-      imageUrl = await fetchInternetMeme(topic);
-      if (!imageUrl) {
+      const rawImgUrl = await fetchInternetMeme(topic);
+      if (rawImgUrl) {
+        imageUrl = `/api/proxy-image?url=${encodeURIComponent(rawImgUrl)}`;
+      } else {
         imageUrl = 'https://via.placeholder.com/600x400?text=No+Meme+Found';
       }
     } else {
@@ -496,6 +506,35 @@ app.post('/api/generate-quiz', async (req, res) => {
   } catch (error) {
     console.error("Error generating quiz:", error);
     return res.status(500).json({ error: "Failed to generate quiz. Please try again." });
+  }
+});
+
+// Proxy endpoint to bypass hotlinking protection for external search images
+app.get('/api/proxy-image', async (req, res) => {
+  const imageUrl = req.query.url;
+  if (!imageUrl) {
+    return res.status(400).send('Missing url parameter');
+  }
+
+  try {
+    const response = await fetch(imageUrl, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+      }
+    });
+
+    if (response.ok) {
+      const arrayBuffer = await response.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      res.set('Content-Type', response.headers.get('content-type') || 'image/jpeg');
+      res.set('Cache-Control', 'public, max-age=86400');
+      res.send(buffer);
+    } else {
+      res.status(response.status).send('Failed to fetch remote image');
+    }
+  } catch (error) {
+    console.error('Error proxying image:', error);
+    res.status(500).send('Internal server error');
   }
 });
 
